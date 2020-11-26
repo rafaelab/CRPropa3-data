@@ -1,12 +1,25 @@
-import numpy as np
 import os
+import numpy as np
+
 import photonField
 import interactionRate
+
+try:
+    from joblib import Parallel, delayed
+    _parallel = True
+except:
+    _parallel = False
+
 
 
 eV = 1.60217657e-19
 gamma = np.logspace(6, 14, 201)  # tabulated UHECR Lorentz-factors
 
+resDir = 'data/Photodisintegration'
+if not os.path.exists(resDir):
+    os.makedirs(resDir)
+
+np.seterr(divide = 'ignore', over = 'ignore', under = 'ignore', invalid = 'ignore') # ignore some warnings
 
 # ----------------------------------------------------
 # Load cross sections for A < 12
@@ -20,7 +33,6 @@ d1exc = np.genfromtxt(ddir1 + 'xs_excl.txt', dtype=[('Z', int), ('N', int), ('ch
 eps1 = interactionRate.romb_pad_logspaced(eps, 513) * eV * 1e6
 xs1sum = np.array([interactionRate.romb_pad_zero(x, 513) for x in d1sum['xs']]) * 1e-31
 xs1exc = np.array([interactionRate.romb_pad_zero(x, 513) for x in d1exc['xs']]) * 1e-31
-
 
 # ----------------------------------------------------
 # Load cross sections for A >= 12 (TALYS)
@@ -38,7 +50,6 @@ eps2 = interactionRate.romb_pad_logspaced(eps, 513) * eV * 1e6
 xs2sum = np.array([interactionRate.romb_pad_zero(x, 513) for x in d2sum['xs']]) * 1e-31
 xs2exc = np.array([interactionRate.romb_pad_zero(x, 513) for x in d2exc['xs']]) * 1e-31
 
-
 # ----------------------------------------------------
 # Load cross sections with photon emission
 # ----------------------------------------------------
@@ -49,40 +60,27 @@ eps3 = eps2
 xs3sum = np.array([interactionRate.romb_pad_zero(x, 513) for x in d3sum['xs']]) * 1e-31
 xs3exc = np.array([interactionRate.romb_pad_zero(x, 513) for x in d3exc['xs']]) * 1e-31
 
-
 # ----------------------------------------------------
-# Calculate interaction rates and branching ratios
 # ----------------------------------------------------
-fields = [
-    photonField.CMB(),
-    photonField.EBL_Kneiske04(),
-    photonField.EBL_Stecker05(),
-    photonField.EBL_Franceschini08(),
-    photonField.EBL_Finke10(),
-    photonField.EBL_Dominguez11(),
-    photonField.EBL_Gilmore12(),
-    photonField.EBL_Stecker16('upper'),
-    photonField.EBL_Stecker16('lower')]
-
-for field in fields:
-    print(field.name)
-
-    # output folder
-    folder = 'data/Photodisintegration'
-    if not os.path.exists(folder):
-        os.makedirs(folder)
-
+def compute_interaction_rates(field):
+    """
+    Calculate interaction rates.
+    """
     # Calculate total interaction rates
     R1 = np.array([interactionRate.calc_rate_eps(eps1, x, gamma, field) for x in xs1sum])
     R2 = np.array([interactionRate.calc_rate_eps(eps2, x, gamma, field) for x in xs2sum])
 
-    np.savetxt(
-        folder + '/rate_%s.txt' % field.name,
-        np.r_[np.c_[d1sum['Z'], d1sum['N'], R1], np.c_[d2sum['Z'], d2sum['N'], R2]],
-        fmt='%i\t%i' + '\t%g' * 201,
-        header='Photodisintegration by the %s\nZ, N, 1/lambda [1/Mpc] for log10(gamma) = 6-14 in 201 steps' % field.info)
+    outFile = '%s/rate_%s.txt' % (resDir, field.name)
+    header  = 'Photodisintegration by the %s\nZ, N, 1/lambda [1/Mpc] for log10(gamma) = 6-14 in 201 steps' % field.info
+    fmt = '%i\t%i' + '\t%9.8e' * 201
+    np.savetxt(outFile, np.r_[np.c_[d1sum['Z'], d1sum['N'], R1], np.c_[d2sum['Z'], d2sum['N'], R2]], fmt = fmt, header = header)
 
-    # Calculate branching ratios from exclusive interaction rates
+# ----------------------------------------------------
+# ----------------------------------------------------
+def compute_branching_ratios(field):
+    """
+    Calculate branching ratios from exclusive interaction rates
+    """
     B1 = np.array([interactionRate.calc_rate_eps(eps1, x, gamma, field) for x in xs1exc])
     B2 = np.array([interactionRate.calc_rate_eps(eps2, x, gamma, field) for x in xs2exc])
     for (Z, N, A) in isotopes1:
@@ -94,23 +92,17 @@ for field in fields:
     B1 = np.nan_to_num(B1)  # set to 0 when total cross section is 0
     B2 = np.nan_to_num(B2)
 
-    np.savetxt(
-        folder + '/branching_%s.txt' % field.name,
-        np.r_[np.c_[d1exc['Z'], d1exc['N'], d1exc['ch'], B1], np.c_[d2exc['Z'], d2exc['N'], d2exc['ch'], B2]],
-        fmt='%i\t%i\t%06d' + '\t%g' * 201,
-        header='Photo-disintegration with the %s\nZ, N, channel, branching ratio for log10(gamma) = 6-14 in 201 steps' % field.info)
-
+    outFile = '%s/branching_%s.txt' % (resDir, field.name)
+    header  = 'Photodisintegration with the %s\nZ, N, channel, branching ratio for log10(gamma) = 6-14 in 201 steps' % field.info
+    fmt = '%i\t%i\t%06d' + '\t%9.8e' * 201
+    np.savetxt(outFile, np.r_[np.c_[d1exc['Z'], d1exc['N'], d1exc['ch'], B1], np.c_[d2exc['Z'], d2exc['N'], d2exc['ch'], B2]], fmt = fmt, header = header)
 
 # ----------------------------------------------------
-# Calculate photon emission probabilities
 # ----------------------------------------------------
-fields = [
-    photonField.CMB(),
-    photonField.EBL_Gilmore12()]
-
-for field in []:
-    print(field.name)
-
+def compute_photon_emission(field):
+    """
+    Calculate photon emission probabilities.
+    """
     R3 = np.array([interactionRate.calc_rate_eps(eps3, x, gamma, field) for x in xs3sum])
     B3 = np.array([interactionRate.calc_rate_eps(eps3, x, gamma, field) for x in xs3exc])
     for i in range(len(d3sum)):
@@ -118,8 +110,42 @@ for field in []:
         B3[s] /= R3[i]
     B3 = np.nan_to_num(B3)
 
-    np.savetxt(
-        'data/Photodisintegration/photon_emission_%s.txt' % field.name.split('_')[0],
-        np.c_[d3exc['Z'], d3exc['N'], d3exc['Zd'], d3exc['Nd'], d3exc['Ephoton'] * 1e6, B3],
-        fmt='%i\t%i\t%i\t%i\t%g' + '\t%g' * 201,
-        header='Emission probabilities of photons with discrete energies via photo-disintegration with the %s\nZ, N, Z_daughter, N_daughter, Ephoton [eV], emission probability for log10(gamma) = 6-14 in 201 steps' % field.info)
+    outFile = '%s/photon_emission_%s.txt' % (resDir, field.name.split('_')[0])
+    fmt = '%i\t%i\t%i\t%i\t%9.8e' + '\t%9.8e' * 201
+    header = 'Emission probabilities of photons with discrete energies via photo-disintegration with the %s\nZ, N, Z_daughter, N_daughter, Ephoton [eV], emission probability for log10(gamma) = 6-14 in 201 steps' % field.info
+    np.savetxt(outFile, np.c_[d3exc['Z'], d3exc['N'], d3exc['Zd'], d3exc['Nd'], d3exc['Ephoton'] * 1e6, B3], fmt = fmt, header = header)
+
+# ----------------------------------------------------
+# ----------------------------------------------------
+if __name__ == '__main__':
+
+    fields1 = [
+        photonField.CMB(),
+        photonField.EBL_Kneiske04(),
+        photonField.EBL_Stecker05(),
+        photonField.EBL_Franceschini08(),
+        photonField.EBL_Finke10(),
+        photonField.EBL_Dominguez11(),
+        photonField.EBL_Gilmore12(),
+        photonField.EBL_Stecker16('upper'),
+        photonField.EBL_Stecker16('lower'),
+        photonField.URB_Protheroe96(),
+        photonField.URB_Nitu21()
+    ]
+
+    fields2 = [
+        photonField.CMB(),
+        photonField.EBL_Gilmore12()]
+
+    # Run in parallel if joblib is available
+    if _parallel:
+        ncores = -1 # use all cores
+        Parallel(n_jobs = ncores)(delayed(compute_interaction_rates)(field) for field in fields1)
+        Parallel(n_jobs = ncores)(delayed(compute_branching_ratios)(field) for field in fields1)
+        Parallel(n_jobs = ncores)(delayed(compute_photon_emission)(field) for field in fields2)
+    else:
+        for field in fields1:
+            compute_interaction_rates(field)
+            compute_branching_ratios(field)
+        for field in fields2:
+            compute_photon_emission(field)

@@ -276,56 +276,208 @@ class URB_Protheroe96:
         """Maximum effective photon energy in [J]"""
         return 2E-6 * eV # 0.825e-6 * eV
 
+# --------------------------------------------------------
+# URB (radio) models
+# --------------------------------------------------------
+class URB_Protheroe96:
+    """
+    Universal Radio Background from Protheroe, Bierman 1996.
+    Taken from EleCa implementation.
+    Reference: 
+      R.J. Protheroe, P.L. Biermann. 
+      Astroparticle Physics 6 (1996) 45.
+      https://arxiv.org/abs/astro-ph/9605119
+    """
+    name = 'URB_Protheroe96'
+    info = 'URB_Protheroe96'
+    redshift = None
 
-class CRB_ARCADE2:
-    def getDensity(self, eps):
+    def getDensity(self, eps, z=0):
         """
-        Spectral number density dn/deps [1/m^3/J] at z = 0.
+        Comoving spectral number density dn/deps [1/m^3/J] at given photon energy eps [J]
         """
-        # T = 1.26 +- 0.09 K (nu/GHz)^-2.6 +- 0.04, see Holder 2012
-        T = 1.26 * (nu/1e9)**-2.6
-        return 8*np.pi / c0**3 / h**3 * eps**2 / (np.exp(eps/(kB*T)) - 1)
+        p0 = -2.23791e+01
+        p1 = -2.59696e-01
+        p2 = 3.51067e-01
+        p3 = -6.80104e-02
+        p4 = 5.82003e-01
+        p5 = -2.00075e+00
+        p6 = -1.35259e+00
+        p7 = -7.12112e-01  # xbreak
+
+        eps = np.r_[eps]
+        x = np.log10(eps / h / 1e9)
+        I = p0 + p1 * x + p2 * x**2 + p3 * x**3 / (np.exp(p4 * x) - 1)
+        I[x > p7] += p6 + p5 * x[x > p7] - p2 * x[x > p7]**2
+        I = 4 * np.pi / (h * c0) * (10**I / eps)
+
+        I[eps < self.getEmin()] = 0
+        I[eps > self.getEmax()] = 0
+        return I
 
     def getEmin(self, z=0):
         """Minimum effective photon energy in [J]"""
-        return 1e-10 * eV
+        return 4.1e-12 * eV
 
     def getEmax(self, z=0):
         """Maximum effective photon energy in [J]"""
-        return 0.1 * eV
+        return 2E-6 * eV # 0.825e-6 * eV
 
+class URB_Fixsen11:
+    """
+    Universal Radio Background as measured by ARCADE2.
+    Note that the frequency range in this reference is more narrow than for other models.
 
+    Reference:
+      D. J. Fixsen et al.    
+      The Astrophysical Journal 734 (2011) 5.
+      https://arxiv.org/abs/0901.0555
+    """
+    name = 'URB_Fixsen11'
+    info = 'URB_Fixsen11'
+    redshift = None
+
+    def getDensity(self, eps, z = 0.):
+        """
+        Spectral number density dn/deps [1/m^3/J] at z = 0.
+        """
+        eps = np.r_[eps]
+        nu = eps / h
+        T = T_CMB + 24.1 * np.power(nu / 3.1e8, -2.6) 
+        I = 8. * np.pi / c0 ** 3 / h ** 3 * eps ** 2 / (np.exp(eps / (kB * T)) - 1.)
+        I[eps < self.getEmin()] = 0.
+        I[eps > self.getEmax()] = 0.
+        return I
+
+    def getEmin(self, z = 0.):
+        """Minimum effective photon energy in [J]"""
+        return 2.2e6 * h
+
+    def getEmax(self, z = 0.):
+        """Maximum effective photon energy in [J]"""
+        return 1e10 * h
+
+class URB_Nitu21:
+    """
+    Universal Radio Background from Nitu et al. 2021.
+    Reference: 
+      I. C. Nitu, H. T. J. Bevings, J. D. Bray, A. M. M. Scaife
+      Astroparticle Physics 126 (2021) 102532.
+      https://arxiv.org/abs/2004.13596
+    """
+    name = 'URB_Nitu21'
+    info = 'URB_Nitu21'
+    redshift = None
+
+    def getDensity(self, eps, z=0):
+        """
+        Comoving spectral number density dn/deps [1/m^3/J] at given photon energy eps [J]
+        """
+        p0 = -1.9847e1
+        p1 = -2.9857e-1
+        p2 = -2.6984e-1
+        p3 = 9.5394e-2
+        p4 = -4.9059e-2
+        p5 = 4.4297e-3
+        p6 = 7.6038e-3
+        p7 = -1.9690e-3
+        p8 = -2.2573e-4
+        p9 = 1.1762e-4
+        p10 = -9.9443e-6
+        p = [p0, p1, p2, p3, p4, p5, p6, p7, p8, p9, p10]
+
+        eps = np.r_[eps]
+        nu = eps / h
+        I = 0.
+        for k in range(len(p)):
+            # I += (p[k] * np.log10(np.power(nu / 1e6, k)))
+            I += (p[k] * np.power(np.log10(nu / 1e6), k))
+        I = 10. ** I
+        I = 4 * np.pi / (h * c0) * (I / eps) 
+
+        I[eps < self.getEmin()] = 0.
+        I[eps > self.getEmax()] = 0.
+
+        return I
+
+    def getEmin(self, z=0):
+        """Minimum effective photon energy in [J]"""
+        return 1e3 * h
+
+    def getEmax(self, z=0):
+        """Maximum effective photon energy in [J]"""
+        return 1e12 * h
+
+# --------------------------------------------------------
+# main
+# --------------------------------------------------------
 if __name__ == '__main__':
+    
+
+    epsEBL = np.logspace(-3, 1, 201, endpoint = True) * eV # infrared-optical energies
+    epsURB = np.logspace(-12, -6, 301, endpoint = True) * eV # radio energies
+    xEBL  =  epsEBL / eV
+    cEBL  =  epsEBL ** 2 / eV
+    xURB  =  epsURB / eV
+    cURB  =  epsURB ** 2 / eV
+
+    y1   = cEBL * EBL_Kneiske04().getDensity(epsEBL)
+    y3   = cEBL * EBL_Stecker05().getDensity(epsEBL)
+    y5   = cEBL * EBL_Franceschini08().getDensity(epsEBL)
+    y6   = cEBL * EBL_Finke10().getDensity(epsEBL)
+    y7   = cEBL * EBL_Dominguez11().getDensity(epsEBL)
+    y8   = cEBL * EBL_Gilmore12().getDensity(epsEBL)
+    y7up = cEBL * EBL_Dominguez11('upper').getDensity(epsEBL)
+    y7lo = cEBL * EBL_Dominguez11('lower').getDensity(epsEBL)
+    y9up = cEBL * EBL_Stecker16('upper').getDensity(epsEBL)
+    y9lo = cEBL * EBL_Stecker16('lower').getDensity(epsEBL)
+    y10  = cURB * URB_Protheroe96().getDensity(epsURB)
+    y11  = cURB * URB_Fixsen11().getDensity(epsURB)
+    y12  = cURB * URB_Nitu21().getDensity(epsURB)
+
+
     from pylab import *
-    eps = logspace(-3, 1, 200) * eV
-    x  = eps / eV
-    c =  eps**2 / eV
-    y1   = c * EBL_Kneiske04().getDensity(eps)
-    y3   = c * EBL_Stecker05().getDensity(eps)
-    y5   = c * EBL_Franceschini08().getDensity(eps)
-    y6   = c * EBL_Finke10().getDensity(eps)
-    y7   = c * EBL_Dominguez11().getDensity(eps)
-    y8   = c * EBL_Gilmore12().getDensity(eps)
-    y7up = c * EBL_Dominguez11('upper').getDensity(eps)
-    y7lo = c * EBL_Dominguez11('lower').getDensity(eps)
-    y9up = c * EBL_Stecker16('upper').getDensity(eps)
-    y9lo = c * EBL_Stecker16('lower').getDensity(eps)
+
+    ## plots
+    #
+    plotDir = 'plots'
+    
+    import os
+    if not os.path.exists(plotDir):
+            os.mkdirs(plotDir)
+
+    xLabel = '$\\varepsilon^2 ~ dn/d\\varepsilon$ [eV/m$^3$]'
+    yLabel = '$\\varepsilon$ [eV]'
 
     figure()
-    plot(x, y1, label='Kneiske 2004')
-    plot(x, y3, label='Stecker 2005')
-    plot(x, y5, label='Franceschini 2008')
-    plot(x, y6, label='Finke 2010')
-    plot(x, y7, label='Dominguez 2011')
-    plot(x, y8, label='Gilmore 2012')
-    fill_between(x, y7lo, y7up, facecolor='m', edgecolor='none', alpha=0.2, zorder=-1, label='Dominguez 2011 (limits)')
-    fill_between(x, y9lo, y9up, facecolor='g', edgecolor='none', alpha=0.2, zorder=-1, label='Stecker 2016 (limits)')
-
+    plot(xEBL, y1, label = 'Kneiske et al. 2004')
+    plot(xEBL, y3, label = 'Stecker et al. 2005')
+    plot(xEBL, y5, label = 'Franceschini et al. 2008')
+    plot(xEBL, y6, label = 'Finke et al. 2010')
+    plot(xEBL, y7, label = 'Dominguez et al. 2011')
+    plot(xEBL, y8, label = 'Gilmore et al. 2012')
+    fill_between(xEBL, y7lo, y7up, facecolor = 'm', edgecolor = 'none', alpha = 0.2, zorder = -1, label = 'Dominguez 2011 (limits)')
+    fill_between(xEBL, y9lo, y9up, facecolor = 'g', edgecolor = 'none', alpha = 0.2, zorder = -1, label = 'Stecker 2016 (limits)')
     legend(loc='lower center', fontsize='x-small')
     loglog()
     grid()
-    # ylim(1e1, 2e6)
-    ylabel('$\epsilon^2 ~ dn/d\epsilon$ [eV/m$^3$]')
-    xlabel('$\epsilon$ [eV]')
-    savefig('figures/EBL.png')
+    ylabel(xLabel)
+    xlabel(yLabel)
+    savefig('%s/EBL.png' % plotDir)
     show()
+
+    ## URB plots
+    #
+    figure()
+    plot(xURB, y10, label = 'Protheroe and Biermann 1996')
+    plot(xURB, y11, label = 'Fixsen et al. 2011')
+    plot(xURB, y12, label = 'Nitu et al. 2021')
+    legend(loc = 'lower center', fontsize = 'x-small')
+    loglog()
+    grid()
+    ylim(1e-10, 1e1)
+    ylabel(xLabel)
+    xlabel(yLabel)
+    savefig('%s/URB.png' % plotDir)
+    show()
+

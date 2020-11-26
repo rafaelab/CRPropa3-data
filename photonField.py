@@ -11,6 +11,7 @@ h = 6.62606957e-34  # [m^2 kg / s]
 kB = 1.3806488e-23  # [m^2 kg / s^2 / K]
 T_CMB = 2.72548  # CMB temperature [K]
 
+np.seterr(divide = 'ignore', over = 'ignore', under = 'ignore') # ignore some warnings
 
 # --------------------------------------------------------
 # interfaces

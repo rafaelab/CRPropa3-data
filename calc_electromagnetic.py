@@ -1,110 +1,164 @@
 from __future__ import division
+import warnings
 import numpy as np
+
 import interactionRate
 import photonField
 import os
 
+try:
+    from joblib import Parallel, delayed
+    _parallel = True
+except:
+    _parallel = False
 
-eV = 1.60217657E-19  # [J]
-me2 = (510.998918E3 * eV)**2  # squared electron mass [J^2/c^4]
-sigmaThomson = 6.6524E-29  # Thomson cross section [m^2]
-alpha = 1 / 137.035999074  # fine structure constant
 
+eV = 1.60217657e-19  # [J]
+me2 = (510.998918e3 * eV)**2  # squared electron mass [J^2/c^4]
+sigmaThomson = 6.6524e-29  # Thomson cross section [m^2]
+alpha = 1. / 137.035999074  # fine structure constant
 
+resDir = 'data'
+
+np.seterr(divide = 'ignore', over = 'ignore', under = 'ignore') # ignore some warnings
+
+# ----------------------------------------------------
+# ----------------------------------------------------
 def sigmaPP(s):
-    """ Pair production cross section (Bethe-Heitler), see Lee 1996 """
+    """ 
+    Pair production cross section (Breit-Wheeler).
+    It follows:
+      "On the Propagation of Extragalactic High Energy Cosmic and Gamma-Rays". 
+       S. Lee. Physical Review D 58 (1998) 043004.
+       arXiv:astro-ph/9604098
+    """
     smin = 4 * me2
     if (s < smin):
         return 0
     else:
         b = np.sqrt(1 - smin / s)
-        return sigmaThomson * 3 / 16 * (1 - b**2) * ((3 - b**4) * np.log((1 + b) / (1 - b)) - 2 * b * (2 - b**2))
+        return sigmaThomson * 3. / 16 * (1 - b**2) * ((3 - b**4) * np.log((1 + b) / (1 - b)) - 2 * b * (2 - b**2))
 
-
+# ----------------------------------------------------
+# ----------------------------------------------------
 def sigmaDPP(s):
-    """ Double-pair production cross section, see R.W. Brown eq. (4.5) with k^2 = q^2 = 0 """
+    """ 
+    Double pair production cross section. 
+    This implementation follows (eq. 4.5 with k^2 = q^2 = 0):
+      "Role of γ+γ→e+ + e− + e+ + e− in Photoproduction, Colliding Beams, and Cosmic Photon Absorption"
+       R. W. Brown et al. Physical Review D 8 (1973) 3083.
+    """
     smin = 16 * me2
     if (s < smin):
         return 0
     else:
         return 6.45E-34 * (1 - smin / s)**6
 
-
+# ----------------------------------------------------
+# ----------------------------------------------------
 def sigmaICS(s):
-    """ Inverse Compton scattering cross sections, see Lee 1996 """
+    """ 
+    Inverse Compton scattering cross sections.
+    It follows:
+     "On the Propagation of Extragalactic High Energy Cosmic and Gamma-Rays". 
+       S. Lee. Physical Review D 58 (1998) 043004.
+       arXiv:astro-ph/9604098
+    """
     smin = me2
     if (s < smin):  # numerically unstable close to smin
         return 0
     else:
-        # note: formula unstable for (s - smin) / smin < 1E-5
+        # note: formula unstable for (s - smin) / smin < 1e-5
         b = (s - smin) / (s + smin)
         A = 2 / b / (1 + b) * (2 + 2 * b - b**2 - 2 * b**3)
         B = (2 - 3 * b**2 - b**3) / b**2 * np.log((1 + b) / (1 - b))
         return sigmaThomson * 3 / 8 * smin / s / b * (A - B)
 
-
+# ----------------------------------------------------
+# ----------------------------------------------------
 def sigmaTPP(s):
-    """ Triplet-pair production cross section, see Lee 1996 """
-    beta = 28 / 9 * np.log(s / me2) - 218 / 27
-    if beta < 0:
-        return 0
+    """ 
+    Triplet-pair production cross section.
+    It follows:
+     "On the Propagation of Extragalactic High Energy Cosmic and Gamma-Rays". 
+       S. Lee. Physical Review D 58 (1998) 043004.
+       arXiv:astro-ph/9604098
+    """
+    beta = 28. / 9 * np.log(s / me2) - 218. / 27
+    if beta < 0.:
+        return 0.
     else:
-        return sigmaThomson * 3 / 8 / np.pi * alpha * beta
+        return sigmaThomson * 3. / 8 / np.pi * alpha * beta
 
-
+# ----------------------------------------------------
+# ----------------------------------------------------
 def getTabulatedXS(sigma, skin):
-    """ Get crosssection for tabulated s_kin """
+    """ 
+    Get cross section for tabulated centre-of-mass energy squared (kinetic).
+
+    Input:
+    . sigma: cross section
+    . skin: squared (kinetic) centre-of-mass energy
+    """
     if sigma in (sigmaPP, sigmaDPP):  # photon interactions
         return np.array([sigma(s) for s in skin])
     if sigma in (sigmaTPP, sigmaICS):  # electron interactions
         return np.array([sigma(s) for s in skin + me2])
     return False
 
-
+# ----------------------------------------------------
+# ----------------------------------------------------
 def getSmin(sigma):
-    """ Return minimum required s_kin = s - (mc^2)^2 for interaction """
+    """ 
+    Return minimum required s_kin = s - (mc^2)^2 for interaction.
+    """
     return {sigmaPP: 4 * me2,
             sigmaDPP: 16 * me2,
-            sigmaTPP: np.exp((218 / 27) / (28 / 9)) * me2 - me2,
-            sigmaICS: 1E-9 * me2
+            sigmaTPP: np.exp((218. / 27) / (28. / 9)) * me2 - me2,
+            sigmaICS: 1e-9 * me2
             }[sigma]
 
-
+# ----------------------------------------------------
+# ----------------------------------------------------
 def getEmin(sigma, field):
-    """ Return minimum required cosmic ray energy for interaction *sigma* with *field* """
-    return getSmin(sigma) / 4 / field.getEmax()
+    """ 
+    Return minimum required cosmic-ray energy for interaction *sigma* with *field* 
+    """
+    return getSmin(sigma) / 4. / field.getEmax()
 
-
-def process(sigma, field, name):
+# ----------------------------------------------------
+# ----------------------------------------------------
+def process(sigma, field, process_name):
+    """
+    """
     # output folder
-    folder = 'data/' + name
+    folder = '%s/%s' % (resDir, process_name)
     if not os.path.exists(folder):
         os.makedirs(folder)
 
     # tabulated energies, limit to energies where the interaction is possible
     Emin = getEmin(sigma, field)
-    E = np.logspace(10, 23, 261) * eV
+    E = np.logspace(9, 23, 281, endpoint = True) * eV
     E = E[E > Emin]
 
-    # -------------------------------------------
     # calculate interaction rates
-    # -------------------------------------------
+    #
     # tabulated values of s_kin = s - mc^2
     # Note: integration method (Romberg) requires 2^n + 1 log-spaced tabulation points
-    s_kin = np.logspace(6, 23, 2049) * eV**2
+    s_kin = np.logspace(6, 23, 2049, endpoint = True) * eV**2
     xs = getTabulatedXS(sigma, s_kin)
     rate = interactionRate.calc_rate_s(s_kin, xs, E, field)
 
     # save
-    fname = folder + '/rate_%s.txt' % field.name
+    fname = '%s/rate_%s.txt' % (folder, field.name)
     data = np.c_[np.log10(E / eV), rate]
-    fmt = '%.2f\t%.6g'
-    header = '%s interaction rates\nphoton field: %s\nlog10(E/eV), 1/lambda [1/Mpc]' % (name, field.info)
-    np.savetxt(fname, data, fmt=fmt, header=header)
+    fmt = '%3.2f\t%9.8e'
+    header  = '%s interaction rates\nphoton field' % (process_name)
+    header += 'Format: %s\nlog10(E/eV), 1/lambda [1/Mpc]' % (field.info)
+    np.savetxt(fname, data, fmt = fmt, header = header)
 
-    # -------------------------------------------
     # calculate cumulative differential interaction rates for sampling s values
-    # -------------------------------------------
+    #
     # find minimum value of s_kin
     skin1 = getSmin(sigma)  # s threshold for interaction
     skin2 = 4 * field.getEmin() * E[0]  # minimum achievable s in collision with background photon (at any tabulated E)
@@ -128,27 +182,41 @@ def process(sigma, field, name):
     row0 = np.r_[0, np.log10(skin_save / eV**2)][np.newaxis]
     data = np.r_[row0, data]  # prepend log10(s_kin/eV^2) as first row
 
-    fname = folder + '/cdf_%s.txt' % field.name
-    fmt = '%.2f' + '\t%.6g' * np.shape(rate_save)[1]
-    header = '%s cumulative differential rate\nphoton field: %s\nlog10(E/eV), d(1/lambda)/ds_kin [1/Mpc/eV^2] for log10(s_kin/eV^2) as given in first row' % (name, field.info)
+    fname = '%s/cdf_%s.txt' % (folder, field.name)
+    fmt = '%3.2f' + '\t%9.8e' * np.shape(rate_save)[1]
+    header  = '%s cumulative differential rate\nphoton field: ' % (field.info)
+    header += '%s\nlog10(E/eV), d(1/lambda)/ds_kin [1/Mpc/eV^2] for log10(s_kin/eV^2) as given in first row' % (field.info)
     np.savetxt(fname, data, fmt=fmt, header=header)
 
+# ----------------------------------------------------
+# ----------------------------------------------------
+if __name__ == '__main__':
 
-fields = [
-    photonField.CMB(),
-    photonField.EBL_Kneiske04(),
-    photonField.EBL_Stecker05(),
-    photonField.EBL_Franceschini08(),
-    photonField.EBL_Finke10(),
-    photonField.EBL_Dominguez11(),
-    photonField.EBL_Gilmore12(),
-    photonField.EBL_Stecker16('lower'),
-    photonField.EBL_Stecker16('upper'),
-    photonField.URB_Protheroe96()]
+    fields = [
+        photonField.CMB(),
+        photonField.EBL_Kneiske04(),
+        photonField.EBL_Stecker05(),
+        photonField.EBL_Franceschini08(),
+        photonField.EBL_Finke10(),
+        photonField.EBL_Dominguez11(),
+        photonField.EBL_Gilmore12(),
+        photonField.EBL_Stecker16('lower'),
+        photonField.EBL_Stecker16('upper'),
+        photonField.URB_Protheroe96(),
+        photonField.URB_Nitu21(),
+        photonField.URB_Fixsen11(),
+        ]
 
-for field in fields:
-    print(field.name)
-    process(sigmaPP, field, 'EMPairProduction')
-    process(sigmaDPP, field, 'EMDoublePairProduction')
-    process(sigmaTPP, field, 'EMTripletPairProduction')
-    process(sigmaICS, field, 'EMInverseComptonScattering')
+    # Run in parallel if joblib is available
+    if _parallel:
+        ncores = -1 # use all cores
+        Parallel(n_jobs = ncores)(delayed(process)(sigmaPP, field, 'EMPairProduction') for field in fields)
+        Parallel(n_jobs = ncores)(delayed(process)(sigmaDPP, field, 'EMDoublePairProduction') for field in fields)
+        Parallel(n_jobs = ncores)(delayed(process)(sigmaTPP, field, 'EMTripletPairProduction') for field in fields)
+        Parallel(n_jobs = ncores)(delayed(process)(sigmaICS, field, 'EMInverseComptonScattering') for field in fields)
+    else:
+        for field in fields:
+            process(sigmaPP, field, 'EMPairProduction')
+            process(sigmaDPP, field, 'EMDoublePairProduction')
+            process(sigmaTPP, field, 'EMTripletPairProduction')
+            process(sigmaICS, field, 'EMInverseComptonScattering')

@@ -4,9 +4,17 @@ References:
 (B70) Blumenthal 1970, Phys.Rev. D
 (C92) Chodorowski et al. 1992, ApJ 400:181-185
 """
+import os
 import numpy as np
 from scipy import integrate
+
 import photonField
+
+try:
+    from joblib import Parallel, delayed
+    _parallel = True
+except:
+    _parallel = False
 
 
 eV = 1.60217657e-19  # [J]
@@ -18,8 +26,13 @@ me = 9.10938291e-31  # electron mass [kg]
 me_c2 = me * c0**2  # electron mass in [J/c^2]
 mp = 1.67262178e-27  # proton mass [kg]
 
+resDir = 'data/ElectronPairProduction'
+if not os.path.exists(resDir):
+    os.makedirs(resDir)
 
-def lossRate(gamma, field, z=0):
+# -------------------------------------------------
+# -------------------------------------------------
+def lossRate(gamma, field, z = 0):
     """
     Loss rate from electron pair production with the given photon background, cf. C92, equation 3.11
     gamma   : list of nucleus Lorentz factors
@@ -72,52 +85,68 @@ def lossRate(gamma, field, z=0):
     a = alpha * r0**2 * me / mp * Mpc
     return a * rate / gamma, a * err / gamma
 
-
 # -------------------------------------------------
-# Generate tables for energy loss rate
 # -------------------------------------------------
-gamma = np.logspace(6, 14, 161)  # tabulated Lorentz factors
-
-fields = [
-    photonField.CMB(),
-    photonField.EBL_Kneiske04(),
-    photonField.EBL_Stecker05(),
-    photonField.EBL_Franceschini08(),
-    photonField.EBL_Finke10(),
-    photonField.EBL_Dominguez11(),
-    photonField.EBL_Gilmore12(),
-    photonField.EBL_Stecker16('upper'),
-    photonField.EBL_Stecker16('lower')]
-
-for field in fields:
-    print(field.name)
+def compute_rate(gamma, field):
+    """
+    Generate tables for energy loss rate.
+    """
     rate = lossRate(gamma, field)[0]
     s = (rate > 1e-12)  # truncate if loss rate is < 10^-12 / Mpc
 
-    fname = 'data/ElectronPairProduction/lossrate_%s.txt' % field.name
+    fname = '%s/lossrate_%s.txt' % (resDir, field.name)
     data = np.c_[np.log10(gamma[s]), rate[s]]
     fmt = '%.2f\t%.6e'
     header = 'Loss rate for electron-pair production with the %s\nlog10(gamma)\t1/gamma dgamma/dx [1/Mpc]' % field.info
-    np.savetxt(fname, data, fmt=fmt, header=header)
-
+    np.savetxt(fname, data, fmt = fmt, header = header)
 
 # -------------------------------------------------
-# Reformat CRPropa2 tables of differential spectrum of secondary electrons
-# This should be reimplemented for extension to the other backgrounds,
-# cross-checking and documentation.
 # -------------------------------------------------
-d1 = np.genfromtxt('tables/EPP/pair_spectrum_cmb.table', unpack=True)
-d2 = np.genfromtxt('tables/EPP/pair_spectrum_cmbir.table', unpack=True)
+def compute_spectrum():
+    """
+    Reformat CRPropa2 tables of differential spectrum of secondary electrons.
+    This should be reimplemented for extension to the other backgrounds, cross-checking and documentation.
+    """
+    d1 = np.loadtxt('tables/EPP/pair_spectrum_cmb.table').T
+    d2 = np.loadtxt('tables/EPP/pair_spectrum_cmbir.table').T
 
-# amplitudes dN/dEe(Ep)
-A1 = d1[2].reshape((70, 170))  # CMB
-A2 = d2[2].reshape((70, 170))  # CMB + IRB (which?)
-A3 = A2 - A1  # IRB only
+    # amplitudes dN/dEe(Ep)
+    A1 = d1[2].reshape((70, 170))  # CMB
+    A2 = d2[2].reshape((70, 170))  # CMB + IRB (which?)
+    A3 = A2 - A1  # IRB only
 
-# # normalize to 1
-# A1 = (A1.T / sum(A1, axis=1)).T
-# A3 = (A3.T / sum(A3, axis=1)).T
+    # # normalize to 1
+    # A1 = (A1.T / sum(A1, axis=1)).T
+    # A3 = (A3.T / sum(A3, axis=1)).T
 
-# save
-np.savetxt('data/ElectronPairProduction/spectrum_CMB.txt', A1, fmt='%.5e')
-np.savetxt('data/ElectronPairProduction/spectrum_IRB.txt', A3, fmt='%.5e')
+    # save
+    np.savetxt('%s/spectrum_CMB.txt' % resDir, A1, fmt='%.5e')
+    np.savetxt('%s/spectrum_IRB.txt' % resDir, A3, fmt='%.5e')
+
+# -------------------------------------------------
+# -------------------------------------------------
+if __name__ == '__main__':
+    
+    gamma = np.logspace(6, 14, 161)  # tabulated Lorentz factors
+
+    fields = [
+        photonField.CMB(),
+        photonField.EBL_Kneiske04(),
+        photonField.EBL_Stecker05(),
+        photonField.EBL_Franceschini08(),
+        photonField.EBL_Finke10(),
+        photonField.EBL_Dominguez11(),
+        photonField.EBL_Gilmore12(),
+        photonField.EBL_Stecker16('upper'),
+        photonField.EBL_Stecker16('lower')]
+
+    # use joblib if available
+    if _parallel:
+        ncores = -1 
+        Parallel(n_jobs = ncores)(delayed(compute_rate)(gamma, field) for field in fields)
+    else:
+        for field in fields:
+            compute_rate(gamma, field)
+
+    compute_spectrum()
+

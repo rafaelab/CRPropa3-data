@@ -441,10 +441,10 @@ if __name__ == '__main__':
     ## plots
     #
     plotDir = 'plots'
-    
+
     import os
     if not os.path.exists(plotDir):
-            os.mkdirs(plotDir)
+            os.makedirs(plotDir)
 
     xLabel = '$\\varepsilon^2 ~ dn/d\\varepsilon$ [eV/m$^3$]'
     yLabel = '$\\varepsilon$ [eV]'

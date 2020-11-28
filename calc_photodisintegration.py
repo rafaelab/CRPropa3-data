@@ -11,15 +11,21 @@ except:
     _parallel = False
 
 
-
+# ----------------------------------------------------
+# ----------------------------------------------------
+# units
 eV = 1.60217657e-19
-gamma = np.logspace(6, 14, 201)  # tabulated UHECR Lorentz-factors
 
+#  tabulated UHECR Lorentz-factors
+gamma = np.logspace(6, 14, 201) 
+
+# output directory; create if inexistent
 resDir = 'data/Photodisintegration'
 if not os.path.exists(resDir):
     os.makedirs(resDir)
 
-np.seterr(divide = 'ignore', over = 'ignore', under = 'ignore', invalid = 'ignore') # ignore some warnings
+# ignore some warnings
+np.seterr(divide = 'ignore', over = 'ignore', under = 'ignore', invalid = 'ignore') 
 
 # ----------------------------------------------------
 # Load cross sections for A < 12
@@ -135,7 +141,9 @@ if __name__ == '__main__':
 
     fields2 = [
         photonField.CMB(),
-        photonField.EBL_Gilmore12()]
+        photonField.EBL_Gilmore12(),
+        photonField.URB_Nitu21()
+    ]
 
     # Run in parallel if joblib is available
     if _parallel:

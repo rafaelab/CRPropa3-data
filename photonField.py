@@ -1,9 +1,10 @@
-import numpy as np
 from os import path
+import numpy as np
 
-cdir = path.split(__file__)[0]
-datadir = path.join(cdir, 'tables/')
 
+# ----------------------------------------------------
+# ----------------------------------------------------
+# units
 eV = 1.60217657e-19  # [J]
 erg = 1e-7  # [J]
 c0 = 299792458  # [m/s]
@@ -11,7 +12,12 @@ h = 6.62606957e-34  # [m^2 kg / s]
 kB = 1.3806488e-23  # [m^2 kg / s^2 / K]
 T_CMB = 2.72548  # CMB temperature [K]
 
-np.seterr(divide = 'ignore', over = 'ignore', under = 'ignore') # ignore some warnings
+# ignore some warnings
+np.seterr(divide = 'ignore', over = 'ignore', under = 'ignore') 
+
+#
+cdir = path.split(__file__)[0]
+datadir = path.join(cdir, 'tables/')
 
 # --------------------------------------------------------
 # interfaces
@@ -236,48 +242,6 @@ class EBL_Stecker16(EBL):
             self.data[z] = eps, n[i]
 
 # --------------------------------------------------------
-# CRB (radio) models
-# --------------------------------------------------------
-class URB_Protheroe96:
-    """
-    Universal Radio Background from Protheroe, Bierman 1996.
-    Taken from EleCa implementation.
-    """
-    name = "URB_Protheroe96"
-    info = "URB_Protheroe96"
-
-    def getDensity(self, eps, z=0):
-        """
-        Comoving spectral number density dn/deps [1/m^3/J] at given photon energy eps [J]
-        """
-        p0 = -2.23791e+01
-        p1 = -2.59696e-01
-        p2 = 3.51067e-01
-        p3 = -6.80104e-02
-        p4 = 5.82003e-01
-        p5 = -2.00075e+00
-        p6 = -1.35259e+00
-        p7 = -7.12112e-01  # xbreak
-
-        eps = np.r_[eps]
-        x = np.log10(eps / h / 1e9)
-        I = p0 + p1 * x + p2 * x**2 + p3 * x**3 / (np.exp(p4 * x) - 1)
-        I[x > p7] += p6 + p5 * x[x > p7] - p2 * x[x > p7]**2
-        I = 4 * np.pi / (h * c0) * (10**I / eps)
-
-        I[eps < self.getEmin()] = 0
-        I[eps > self.getEmax()] = 0
-        return I
-
-    def getEmin(self, z=0):
-        """Minimum effective photon energy in [J]"""
-        return 4.1e-12 * eV
-
-    def getEmax(self, z=0):
-        """Maximum effective photon energy in [J]"""
-        return 2E-6 * eV # 0.825e-6 * eV
-
-# --------------------------------------------------------
 # URB (radio) models
 # --------------------------------------------------------
 class URB_Protheroe96:
@@ -322,7 +286,7 @@ class URB_Protheroe96:
 
     def getEmax(self, z=0):
         """Maximum effective photon energy in [J]"""
-        return 2E-6 * eV # 0.825e-6 * eV
+        return 2e-6 * eV # 0.825e-6 * eV
 
 class URB_Fixsen11:
     """

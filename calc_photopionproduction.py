@@ -1,55 +1,51 @@
+import os
 import numpy as np
+
 import interactionRate
 import photonField
-import os
+
+try:
+    from joblib import Parallel, delayed
+    _parallel = True
+except:
+    _parallel = False
 
 
-
-
-
+# ----------------------------------------------------
+# ----------------------------------------------------
+# units
 eV = 1.60217657e-19
-lgamma = np.linspace(6, 16, 251, endpoint = True)  # tabulated Lorentz factors
-gamma = 10 ** lgamma
+
+# output directory
 resDir = 'data/PhotoPionProduction'
+if not os.path.exists(resDir):
+    os.makedirs(resDir)
 
 # ----------------------------------------------------
 # Load proton and neutron cross sections [1/m^2] for tabulated energies [J]
 # Truncate to largest length 2^i + 1 for Romberg integration
 # ----------------------------------------------------
 d = np.loadtxt('tables/PPP/xs_proton.txt')
-eps1 = d[0, :2049] * 1e9 * eV  # [J]
-xs1 = d[1, :2049] * 1e-34  # [m^2]
+eps1 = d[:2049, 0] * 1e9 * eV  # [J]
+xs1  = d[:2049, 1] * 1e-34  # [m^2]
 
 d = np.loadtxt('tables/PPP/xs_neutron.txt')
-eps2 = d[0, :2049] * 1e9 * eV  # [J]
-xs2 = d[1, :2049] * 1e-34  # [m^2]
+eps2 = d[:2049, 0] * 1e9 * eV  # [J]
+xs2  = d[:2049, 1] * 1e-34  # [m^2]
 
+# tabulated Lorentz factors
+lgamma = np.linspace(6, 16, 251, endpoint = True)  
+gamma = 10 ** lgamma
 
 # ----------------------------------------------------
 # ----------------------------------------------------
-def compute_rates(field):
+def compute_interaction_rates(field):
     """
     This function calculates the interaction rates at z=0.
     When redshift information is available, the redshift-dependent rates are computed.
     """
-    # output folder
-    if not os.path.exists(resDir):
-        os.makedirs(resDir)
-
-    # calculate interaction rates at z=0, default option
-    r1 = interactionRate.calc_rate_eps(eps1, xs1, gamma, field)
-    r2 = interactionRate.calc_rate_eps(eps2, xs2, gamma, field)
-
-    fname = '%s/rate_%s.txt' % (resDir, field.name)
-    data = np.c_[lgamma, r1, r2]
-    fmt = '%.2f\t%.6e\t%.6e'
-    header  = 'Photopion production rate at z=0.'
-    header += 'Format: log10(gamma)\t1/lambda_proton [1/Mpc]\t1/lambda_neutron [1/Mpc]'
-    np.savetxt(fname, data, fmt = fmt, header = header)
-
-    # calculate redshift-dependent interaction rates
     redshifts = field.redshift
-    if redshifts is not None:
+    if redshifts is not None:   # calculate redshift-dependent interaction rates
         # thin out long redshift lists (e.g., Finke10)
         n_zmax = 100
         if len(redshifts) > n_zmax:
@@ -68,7 +64,17 @@ def compute_rates(field):
         header  = 'Photopion production rate for the %s\n (redshift dependent).' % field.info
         header += 'Format: z\tlog10(gamma)\t1/lambda_proton [1/Mpc]\t1/lambda_neutron [1/Mpc]' 
         np.savetxt(fname, data, fmt = fmt, header = header)
+    else:
+        # calculate interaction rates at z=0, default option
+        r1 = interactionRate.calc_rate_eps(eps1, xs1, gamma, field)
+        r2 = interactionRate.calc_rate_eps(eps2, xs2, gamma, field)
 
+        fname = '%s/rate_%s.txt' % (resDir, field.name)
+        data = np.c_[lgamma, r1, r2]
+        fmt = '%.2f\t%.6e\t%.6e'
+        header  = 'Photopion production rate at z=0.'
+        header += 'Format: log10(gamma)\t1/lambda_proton [1/Mpc]\t1/lambda_neutron [1/Mpc]'
+        np.savetxt(fname, data, fmt = fmt, header = header)
 
 # ----------------------------------------------------
 # ----------------------------------------------------
@@ -88,6 +94,11 @@ if __name__ == '__main__':
         photonField.URB_Protheroe96()
     ]
 
-    for field in fields:
-        print(field.name)
-        compute_rates(field)
+    # Run in parallel if joblib is available
+    if _parallel:
+        ncores = -1 # use all cores
+        Parallel(n_jobs = ncores)(delayed(compute_interaction_rates)(field) for field in fields)
+    else:
+        for field in fields:
+            compute_interaction_rates(field)
+

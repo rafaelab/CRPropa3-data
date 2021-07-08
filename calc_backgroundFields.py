@@ -71,7 +71,9 @@ if __name__ == '__main__':
     ebl06 = EBL_Stecker16('upper')
     ebl07 = EBL_Stecker05()
     ebl08 = EBL_Kneiske04()
-    ebls = [ebl01, ebl02, ebl03, ebl04, ebl05, ebl06, ebl07, ebl08]
+    ebl09 = EBL_Dominguez11('lower')
+    ebl10 = EBL_Dominguez11('upper')
+    ebls = [ebl01, ebl02, ebl03, ebl04, ebl05, ebl06, ebl07, ebl08, ebl09, ebl10]
 
     for field in urbs:
         generatePhotonFieldFiles(field)

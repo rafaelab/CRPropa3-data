@@ -6,21 +6,26 @@ import interactionRate
 import photonField
 import os
 
-try:
-    from joblib import Parallel, delayed
-    _parallel = True
-except:
-    _parallel = False
+# try:
+#     from joblib import Parallel, delayed
+#     _parallel = True
+# except:
+#     _parallel = False
+_parallel = False
 
 
+# ----------------------------------------------------
+# ----------------------------------------------------
+# units
 eV = 1.60217657e-19  # [J]
-me2 = (510.998918e3 * eV)**2  # squared electron mass [J^2/c^4]
+me2 = (510.998918e3 * eV) ** 2  # squared electron mass [J^2/c^4]
 sigmaThomson = 6.6524e-29  # Thomson cross section [m^2]
 alpha = 1. / 137.035999074  # fine structure constant
 
+# output directory base
 resDir = 'data'
 
-np.seterr(divide = 'ignore', over = 'ignore', under = 'ignore') # ignore some warnings
+# np.seterr(divide = 'ignore', over = 'ignore', under = 'ignore') # ignore some warnings
 
 # ----------------------------------------------------
 # ----------------------------------------------------
@@ -52,7 +57,7 @@ def sigmaDPP(s):
     if (s < smin):
         return 0
     else:
-        return 6.45E-34 * (1 - smin / s)**6
+        return 6.45e-34 * (1 - smin / s) ** 6
 
 # ----------------------------------------------------
 # ----------------------------------------------------
@@ -65,14 +70,14 @@ def sigmaICS(s):
        arXiv:astro-ph/9604098
     """
     smin = me2
-    if (s < smin):  # numerically unstable close to smin
-        return 0
+    if (s <= smin):  # numerically unstable close to smin
+        return 0.
     else:
         # note: formula unstable for (s - smin) / smin < 1e-5
         b = (s - smin) / (s + smin)
-        A = 2 / b / (1 + b) * (2 + 2 * b - b**2 - 2 * b**3)
+        A = 2. / b / (1 + b) * (2 + 2 * b - b**2 - 2 * b**3)
         B = (2 - 3 * b**2 - b**3) / b**2 * np.log((1 + b) / (1 - b))
-        return sigmaThomson * 3 / 8 * smin / s / b * (A - B)
+        return 3. / 8. * sigmaThomson * smin / s / b * (A - B)
 
 # ----------------------------------------------------
 # ----------------------------------------------------
@@ -80,7 +85,7 @@ def sigmaTPP(s):
     """ 
     Triplet-pair production cross section.
     It follows:
-     "On the Propagation of Extragalactic High Energy Cosmic and Gamma-Rays". 
+    "On the Propagation of Extragalactic High Energy Cosmic and Gamma-Rays". 
        S. Lee. Physical Review D 58 (1998) 043004.
        arXiv:astro-ph/9604098
     """
@@ -138,14 +143,14 @@ def process(sigma, field, process_name):
 
     # tabulated energies, limit to energies where the interaction is possible
     Emin = getEmin(sigma, field)
-    E = np.logspace(9, 23, 281, endpoint = True) * eV
+    E = np.logspace(9, 23, 561, endpoint = True) * eV
     E = E[E > Emin]
 
     # calculate interaction rates
     #
     # tabulated values of s_kin = s - mc^2
     # Note: integration method (Romberg) requires 2^n + 1 log-spaced tabulation points
-    s_kin = np.logspace(6, 23, 2049, endpoint = True) * eV**2
+    s_kin = np.logspace(6.2, 23, 4097) * eV**2
     xs = getTabulatedXS(sigma, s_kin)
     rate = interactionRate.calc_rate_s(s_kin, xs, E, field)
 
@@ -186,7 +191,7 @@ def process(sigma, field, process_name):
     fmt = '%3.2f' + '\t%9.8e' * np.shape(rate_save)[1]
     header  = '%s cumulative differential rate\nphoton field: ' % (field.info)
     header += '%s\nlog10(E/eV), d(1/lambda)/ds_kin [1/Mpc/eV^2] for log10(s_kin/eV^2) as given in first row' % (field.info)
-    np.savetxt(fname, data, fmt=fmt, header=header)
+    np.savetxt(fname, data, fmt = fmt, header = header)
 
 # ----------------------------------------------------
 # ----------------------------------------------------
@@ -199,14 +204,16 @@ if __name__ == '__main__':
         photonField.EBL_Franceschini08(),
         photonField.EBL_Finke10(),
         photonField.EBL_Dominguez11(),
+        photonField.EBL_Dominguez11('lower'),
+        photonField.EBL_Dominguez11('upper'),
         photonField.EBL_Gilmore12(),
         photonField.EBL_Stecker16('lower'),
         photonField.EBL_Stecker16('upper'),
         photonField.URB_Protheroe96(),
         photonField.URB_Nitu21(),
-        photonField.URB_Fixsen11(),
+        photonField.URB_Fixsen11()
         ]
-
+        
     # Run in parallel if joblib is available
     if _parallel:
         ncores = -1 # use all cores

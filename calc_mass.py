@@ -7,6 +7,8 @@ import crpropa
 # The nuclear mass is then approximated as atomic mass minus electron mass.
 # Here, electron binding energies (~keV) can be neglected compared to nuclear binding energies (~MeV) and nucleon and electron masses (~GeV, ~MeV).
 
+# ____________________________________________________________________________________________
+#
 ### read NIST data
 # See: http://www.nist.gov/pml/data/comp.cfm
 # All Isotopes, Linearized ASCII Output
@@ -60,3 +62,6 @@ for z in range(27):
         fout.write(str(z) + ' ' + str(n) + ' ' + str(D[z, n]) + '\n')
 
 fout.close()
+
+# ____________________________________________________________________________________________
+#

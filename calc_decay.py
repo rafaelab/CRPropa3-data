@@ -6,6 +6,9 @@ from scipy.integrate import quad
 # Decay Search: http://www.nndc.bnl.gov/nudat2/indx_sigma.jsp, output: formatted file --> decay_NuDat2.txt
 # Decay Radiation Search: gamma_NuDat2.txt: http://www.nndc.bnl.gov/nudat2/indx_dec.jsp --> gamma_NuDat2.txt
 
+
+# ____________________________________________________________________________________________
+#
 class Decay:
     def load(self, s):
         l = s.split('\t')
@@ -45,6 +48,8 @@ class Decay:
     def isBetaMinus(self):
         return self.mode.find('B') > -1
 
+# ____________________________________________________________________________________________
+#
 class GammaEmission:
     def __init__(self, lines):
         l = lines[0].split('\t')
@@ -66,7 +71,8 @@ class GammaEmission:
             s += '\n    energy = %.3f intensity = %.3e' % (self.energy[i], self.intensity[i])
         return s
 
-
+# ____________________________________________________________________________________________
+#
 ### parse gamma emission data file
 print('\nParsing gamma emission data file')
 print('-------------------------------------')
@@ -436,3 +442,7 @@ for z in range(1,27):
                 continue
             fout.write('%i\t%i\t%i\n' % (z, n, z+n))
 fout.close()
+
+
+# ____________________________________________________________________________________________
+#

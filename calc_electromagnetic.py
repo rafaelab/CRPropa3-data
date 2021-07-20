@@ -6,16 +6,16 @@ import interactionRate
 import photonField
 import os
 
-# try:
-#     from joblib import Parallel, delayed
-#     _parallel = True
-# except:
-#     _parallel = False
-_parallel = False
+try:
+    from joblib import Parallel, delayed
+    _parallel = True
+except:
+    _parallel = False
+# _parallel = False
 
 
-# ----------------------------------------------------
-# ----------------------------------------------------
+# ____________________________________________________________________________________________
+#
 # units
 eV = 1.60217657e-19  # [J]
 me2 = (510.998918e3 * eV) ** 2  # squared electron mass [J^2/c^4]
@@ -27,8 +27,8 @@ resDir = 'data'
 
 # np.seterr(divide = 'ignore', over = 'ignore', under = 'ignore') # ignore some warnings
 
-# ----------------------------------------------------
-# ----------------------------------------------------
+# ____________________________________________________________________________________________
+#
 def sigmaPP(s):
     """ 
     Pair production cross section (Breit-Wheeler).
@@ -44,8 +44,8 @@ def sigmaPP(s):
         b = np.sqrt(1 - smin / s)
         return sigmaThomson * 3. / 16 * (1 - b**2) * ((3 - b**4) * np.log((1 + b) / (1 - b)) - 2 * b * (2 - b**2))
 
-# ----------------------------------------------------
-# ----------------------------------------------------
+# ____________________________________________________________________________________________
+#
 def sigmaDPP(s):
     """ 
     Double pair production cross section. 
@@ -59,8 +59,8 @@ def sigmaDPP(s):
     else:
         return 6.45e-34 * (1 - smin / s) ** 6
 
-# ----------------------------------------------------
-# ----------------------------------------------------
+# ____________________________________________________________________________________________
+#
 def sigmaICS(s):
     """ 
     Inverse Compton scattering cross sections.
@@ -79,8 +79,8 @@ def sigmaICS(s):
         B = (2 - 3 * b**2 - b**3) / b**2 * np.log((1 + b) / (1 - b))
         return 3. / 8. * sigmaThomson * smin / s / b * (A - B)
 
-# ----------------------------------------------------
-# ----------------------------------------------------
+# ____________________________________________________________________________________________
+#
 def sigmaTPP(s):
     """ 
     Triplet-pair production cross section.
@@ -95,8 +95,8 @@ def sigmaTPP(s):
     else:
         return sigmaThomson * 3. / 8 / np.pi * alpha * beta
 
-# ----------------------------------------------------
-# ----------------------------------------------------
+# ____________________________________________________________________________________________
+#
 def getTabulatedXS(sigma, skin):
     """ 
     Get cross section for tabulated centre-of-mass energy squared (kinetic).
@@ -111,8 +111,8 @@ def getTabulatedXS(sigma, skin):
         return np.array([sigma(s) for s in skin + me2])
     return False
 
-# ----------------------------------------------------
-# ----------------------------------------------------
+# ____________________________________________________________________________________________
+#
 def getSmin(sigma):
     """ 
     Return minimum required s_kin = s - (mc^2)^2 for interaction.
@@ -123,16 +123,16 @@ def getSmin(sigma):
             sigmaICS: 1e-9 * me2
             }[sigma]
 
-# ----------------------------------------------------
-# ----------------------------------------------------
+# ____________________________________________________________________________________________
+#
 def getEmin(sigma, field):
     """ 
     Return minimum required cosmic-ray energy for interaction *sigma* with *field* 
     """
     return getSmin(sigma) / 4. / field.getEmax()
 
-# ----------------------------------------------------
-# ----------------------------------------------------
+# ____________________________________________________________________________________________
+#
 def process(sigma, field, process_name):
     """
     """
@@ -193,8 +193,8 @@ def process(sigma, field, process_name):
     header += '%s\nlog10(E/eV), d(1/lambda)/ds_kin [1/Mpc/eV^2] for log10(s_kin/eV^2) as given in first row' % (field.info)
     np.savetxt(fname, data, fmt = fmt, header = header)
 
-# ----------------------------------------------------
-# ----------------------------------------------------
+# ____________________________________________________________________________________________
+#
 if __name__ == '__main__':
 
     fields = [
@@ -227,3 +227,6 @@ if __name__ == '__main__':
             process(sigmaDPP, field, 'EMDoublePairProduction')
             process(sigmaTPP, field, 'EMTripletPairProduction')
             process(sigmaICS, field, 'EMInverseComptonScattering')
+
+# ____________________________________________________________________________________________
+#

@@ -11,8 +11,8 @@ except:
     _parallel = False
 
 
-# ----------------------------------------------------
-# ----------------------------------------------------
+# ____________________________________________________________________________________________
+#
 # units
 eV = 1.60217657e-19
 
@@ -27,9 +27,8 @@ if not os.path.exists(resDir):
 # ignore some warnings
 np.seterr(divide = 'ignore', over = 'ignore', under = 'ignore', invalid = 'ignore') 
 
-# ----------------------------------------------------
-# Load cross sections for A < 12
-# ----------------------------------------------------
+# ____________________________________________________________________________________________
+#
 ddir1 = 'tables/PD_external/'
 isotopes1 = np.genfromtxt(ddir1 + 'isotopes.txt')
 eps = np.genfromtxt(ddir1 + 'eps.txt')
@@ -40,9 +39,8 @@ eps1 = interactionRate.romb_pad_logspaced(eps, 513) * eV * 1e6
 xs1sum = np.array([interactionRate.romb_pad_zero(x, 513) for x in d1sum['xs']]) * 1e-31
 xs1exc = np.array([interactionRate.romb_pad_zero(x, 513) for x in d1exc['xs']]) * 1e-31
 
-# ----------------------------------------------------
-# Load cross sections for A >= 12 (TALYS)
-# ----------------------------------------------------
+# ____________________________________________________________________________________________
+#
 ddir2 = 'tables/PD_Talys1.8_Khan/'
 isotopes2 = np.genfromtxt(ddir2 + 'isotopes.txt')
 eps = np.genfromtxt(ddir2 + 'eps.txt')
@@ -56,9 +54,8 @@ eps2 = interactionRate.romb_pad_logspaced(eps, 513) * eV * 1e6
 xs2sum = np.array([interactionRate.romb_pad_zero(x, 513) for x in d2sum['xs']]) * 1e-31
 xs2exc = np.array([interactionRate.romb_pad_zero(x, 513) for x in d2exc['xs']]) * 1e-31
 
-# ----------------------------------------------------
-# Load cross sections with photon emission
-# ----------------------------------------------------
+# ____________________________________________________________________________________________
+#
 d3sum = np.genfromtxt(ddir2 + 'xs_photon_sum.txt', dtype=[('Z', int), ('N', int), ('Zd', int), ('Nd', int), ('xs', '%if8' % len(eps))])
 d3exc = np.genfromtxt(ddir2 + 'xs_photon_thin.txt', dtype=[('Z', int), ('N', int), ('Zd', int), ('Nd', int), ('Ephoton', float), ('xs', '%if8' % len(eps))])
 # Pad cross sections to next larger 2^n + 1 tabulation points for Romberg integration and convert to SI units
@@ -66,8 +63,8 @@ eps3 = eps2
 xs3sum = np.array([interactionRate.romb_pad_zero(x, 513) for x in d3sum['xs']]) * 1e-31
 xs3exc = np.array([interactionRate.romb_pad_zero(x, 513) for x in d3exc['xs']]) * 1e-31
 
-# ----------------------------------------------------
-# ----------------------------------------------------
+# ____________________________________________________________________________________________
+#
 def compute_interaction_rates(field):
     """
     Calculate interaction rates.
@@ -81,8 +78,8 @@ def compute_interaction_rates(field):
     fmt = '%i\t%i' + '\t%9.8e' * 201
     np.savetxt(outFile, np.r_[np.c_[d1sum['Z'], d1sum['N'], R1], np.c_[d2sum['Z'], d2sum['N'], R2]], fmt = fmt, header = header)
 
-# ----------------------------------------------------
-# ----------------------------------------------------
+# ____________________________________________________________________________________________
+#
 def compute_branching_ratios(field):
     """
     Calculate branching ratios from exclusive interaction rates
@@ -103,8 +100,8 @@ def compute_branching_ratios(field):
     fmt = '%i\t%i\t%06d' + '\t%9.8e' * 201
     np.savetxt(outFile, np.r_[np.c_[d1exc['Z'], d1exc['N'], d1exc['ch'], B1], np.c_[d2exc['Z'], d2exc['N'], d2exc['ch'], B2]], fmt = fmt, header = header)
 
-# ----------------------------------------------------
-# ----------------------------------------------------
+# ____________________________________________________________________________________________
+#
 def compute_photon_emission(field):
     """
     Calculate photon emission probabilities.
@@ -121,8 +118,8 @@ def compute_photon_emission(field):
     header = 'Emission probabilities of photons with discrete energies via photo-disintegration with the %s\nZ, N, Z_daughter, N_daughter, Ephoton [eV], emission probability for log10(gamma) = 6-14 in 201 steps' % field.info
     np.savetxt(outFile, np.c_[d3exc['Z'], d3exc['N'], d3exc['Zd'], d3exc['Nd'], d3exc['Ephoton'] * 1e6, B3], fmt = fmt, header = header)
 
-# ----------------------------------------------------
-# ----------------------------------------------------
+# ____________________________________________________________________________________________
+#
 if __name__ == '__main__':
 
     fields1 = [
@@ -157,3 +154,6 @@ if __name__ == '__main__':
             compute_branching_ratios(field)
         for field in fields2:
             compute_photon_emission(field)
+
+# ____________________________________________________________________________________________
+#

@@ -5,13 +5,14 @@ from scipy.integrate import trapz
 import photonField
 
 
-
+# ____________________________________________________________________________________________
+#
 resDir = 'data/Scaling'
 if not os.path.exists(resDir):
     os.makedirs(resDir)
 
-# ----------------------------------------------------
-# ----------------------------------------------------
+# ____________________________________________________________________________________________
+#
 def compute_scaling(field):
     """
     Calculate the integral I(z) of the EBL spectral number density dn/depsilon as function of redshift z.
@@ -35,8 +36,8 @@ def compute_scaling(field):
 
     np.savetxt(outFile, np.c_[tz, ts], fmt = fmt, header = header)
 
-# ----------------------------------------------------
-# ----------------------------------------------------
+# ____________________________________________________________________________________________
+#
 if __name__ == '__main__':
 
     fields = [
@@ -52,3 +53,6 @@ if __name__ == '__main__':
     for field in fields:
         print(field.name)
         compute_scaling(field)
+
+# ____________________________________________________________________________________________
+#

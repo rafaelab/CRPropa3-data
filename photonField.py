@@ -2,8 +2,8 @@ from os import path
 import numpy as np
 
 
-# ----------------------------------------------------
-# ----------------------------------------------------
+# ____________________________________________________________________________________________
+#
 # units
 eV = 1.60217657e-19  # [J]
 erg = 1e-7  # [J]
@@ -19,9 +19,8 @@ np.seterr(divide = 'ignore', over = 'ignore', under = 'ignore')
 cdir = path.split(__file__)[0]
 datadir = path.join(cdir, 'tables/')
 
-# --------------------------------------------------------
-# interfaces
-# --------------------------------------------------------
+# ____________________________________________________________________________________________
+#
 class CMB:
     """
     Cosmic microwave background radiation
@@ -44,6 +43,8 @@ class CMB:
         """Maximum effective photon energy in [J]"""
         return 0.1 * eV
 
+# ____________________________________________________________________________________________
+#
 class EBL:
     """
     Base class for extragalactic background light (EBL) models
@@ -72,9 +73,6 @@ class EBL:
         """Maximum tabulated photon energy in [J]"""
         return self.data[z][0][-1]
 
-# --------------------------------------------------------
-# EBL (optical and infrared) models
-# --------------------------------------------------------
 class EBL_Kneiske04(EBL):
     name = 'IRB_Kneiske04'
     info = 'cosmic infrared and optical background radiation model of Kneiske et al. 2004'
@@ -241,9 +239,8 @@ class EBL_Stecker16(EBL):
         for i, z in enumerate(self.redshift):
             self.data[z] = eps, n[i]
 
-# --------------------------------------------------------
-# URB (radio) models
-# --------------------------------------------------------
+# ____________________________________________________________________________________________
+#
 class URB_Protheroe96:
     """
     Universal Radio Background from Protheroe, Bierman 1996.
@@ -292,6 +289,7 @@ class URB_Fixsen11:
     """
     Universal Radio Background as measured by ARCADE2.
     Note that the frequency range in this reference is more narrow than for other models.
+    Therefore, this should be used carefully.
 
     Reference:
       D. J. Fixsen et al.    
@@ -373,9 +371,8 @@ class URB_Nitu21:
         """Maximum effective photon energy in [J]"""
         return 1e12 * h
 
-# --------------------------------------------------------
-# main
-# --------------------------------------------------------
+# ____________________________________________________________________________________________
+#
 if __name__ == '__main__':
     
 
@@ -446,3 +443,5 @@ if __name__ == '__main__':
     savefig('%s/URB.png' % plotDir)
     show()
 
+# ____________________________________________________________________________________________
+#

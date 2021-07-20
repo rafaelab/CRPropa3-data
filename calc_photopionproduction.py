@@ -11,8 +11,8 @@ except:
     _parallel = False
 
 
-# ----------------------------------------------------
-# ----------------------------------------------------
+# ____________________________________________________________________________________________
+#
 # units
 eV = 1.60217657e-19
 
@@ -21,10 +21,8 @@ resDir = 'data/PhotoPionProduction'
 if not os.path.exists(resDir):
     os.makedirs(resDir)
 
-# ----------------------------------------------------
 # Load proton and neutron cross sections [1/m^2] for tabulated energies [J]
 # Truncate to largest length 2^i + 1 for Romberg integration
-# ----------------------------------------------------
 d = np.loadtxt('tables/PPP/xs_proton.txt')
 eps1 = d[:2049, 0] * 1e9 * eV  # [J]
 xs1  = d[:2049, 1] * 1e-34  # [m^2]
@@ -33,12 +31,13 @@ d = np.loadtxt('tables/PPP/xs_neutron.txt')
 eps2 = d[:2049, 0] * 1e9 * eV  # [J]
 xs2  = d[:2049, 1] * 1e-34  # [m^2]
 
+
 # tabulated Lorentz factors
 lgamma = np.linspace(6, 16, 251, endpoint = True)  
 gamma = 10 ** lgamma
 
-# ----------------------------------------------------
-# ----------------------------------------------------
+# ____________________________________________________________________________________________
+#
 def compute_interaction_rates(field):
     """
     This function calculates the interaction rates at z=0.
@@ -53,31 +52,31 @@ def compute_interaction_rates(field):
             redshifts = redshifts[::thin]
 
         data = []
-        for z in redshifts:
+        for i, z in enumerate(redshifts):
             r1 = interactionRate.calc_rate_eps(eps1, xs1, gamma, field, z)
             r2 = interactionRate.calc_rate_eps(eps2, xs2, gamma, field, z)
-            data.append(np.c_[[z] * len(lgamma), lgamma, r1, r2])
+            data.append(np.c_[[z] * len(lgamma), lgamma, r1, r2]) 
+        data = np.nan_to_num(np.concatenate([d for d in data], axis = 0)) 
 
-        data = np.nan_to_num(np.concatenate([d for d in data], axis = 0))
         fname = '%s/rate_%s.txt' % (resDir, field.name.replace('IRB', 'IRBz'))
         fmt = '%.2f\t%.2f\t%.6e\t%.6e'
         header  = 'Photopion production rate for the %s\n (redshift dependent).' % field.info
         header += 'Format: z\tlog10(gamma)\t1/lambda_proton [1/Mpc]\t1/lambda_neutron [1/Mpc]' 
         np.savetxt(fname, data, fmt = fmt, header = header)
-    else:
-        # calculate interaction rates at z=0, default option
-        r1 = interactionRate.calc_rate_eps(eps1, xs1, gamma, field)
-        r2 = interactionRate.calc_rate_eps(eps2, xs2, gamma, field)
 
-        fname = '%s/rate_%s.txt' % (resDir, field.name)
-        data = np.c_[lgamma, r1, r2]
-        fmt = '%.2f\t%.6e\t%.6e'
-        header  = 'Photopion production rate at z=0.'
-        header += 'Format: log10(gamma)\t1/lambda_proton [1/Mpc]\t1/lambda_neutron [1/Mpc]'
-        np.savetxt(fname, data, fmt = fmt, header = header)
+    # calculate interaction rates at z=0, default option
+    r1 = interactionRate.calc_rate_eps(eps1, xs1, gamma, field)
+    r2 = interactionRate.calc_rate_eps(eps2, xs2, gamma, field)
 
-# ----------------------------------------------------
-# ----------------------------------------------------
+    fname = '%s/rate_%s.txt' % (resDir, field.name)
+    data = np.c_[lgamma, r1, r2]
+    fmt = '%.2f\t%.6e\t%.6e'
+    header  = 'Photopion production rate at z=0.'
+    header += 'Format: log10(gamma)\t1/lambda_proton [1/Mpc]\t1/lambda_neutron [1/Mpc]'
+    np.savetxt(fname, data, fmt = fmt, header = header)
+
+# ____________________________________________________________________________________________
+#
 if __name__ == '__main__':
     
     fields = [
@@ -102,3 +101,5 @@ if __name__ == '__main__':
         for field in fields:
             compute_interaction_rates(field)
 
+# ____________________________________________________________________________________________
+#

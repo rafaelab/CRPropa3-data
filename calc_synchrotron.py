@@ -4,7 +4,8 @@ from scipy.special import kv
 from scipy import integrate
 
 
-
+# ____________________________________________________________________________________________
+#
 def synchrotron_spectrum(xval):
     """
     Calculate cumulative synchrotron spectrum.
@@ -29,7 +30,8 @@ def synchrotron_spectrum(xval):
         b = integrate.cumtrapz(x = xval, y = xval * F, initial = 0)
     return b / b[-1]
 
-
+# ____________________________________________________________________________________________
+#
 def compute_spectrum(x, outputName):
     """
     Cumulative differential synchrotron spectrum. 
@@ -48,6 +50,8 @@ def compute_spectrum(x, outputName):
     fmt = '%3.2f\t%7.6e'
     np.savetxt(outputName, data, fmt = fmt, header = header)
 
+# ____________________________________________________________________________________________
+#
 def plot(specFile, plotFile):
     """
     Make simple plot for sanity checks.
@@ -76,9 +80,8 @@ def plot(specFile, plotFile):
     plt.show()
 
 
-# ----------------------------------------------------------------
-# main
-# ----------------------------------------------------------------
+# ____________________________________________________________________________________________
+#
 if __name__ == '__main__':
     
     x = np.logspace(-10., 4, 1401)
@@ -97,3 +100,5 @@ if __name__ == '__main__':
     plot(outputName, plotName)
 
 
+# ____________________________________________________________________________________________
+#

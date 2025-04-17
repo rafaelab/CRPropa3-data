@@ -578,6 +578,40 @@ class EBL_Finke22(EBL):
         
         self.photonDensity = np.array(tmp_list).transpose()
 
+class EBL_AlvesBatista25(EBL):
+    """ EBL model from Alves-Batista et al. 2025.
+    This is essentially an artificial model that mixes the two peaks from the upper and lower limits of the Saldana-Lopez model.
+    """
+    def __init__(self, which):
+        """ Constructor
+
+        Input:
+          which : \"ul\" or \"lu\" for the upper/lower uncertainty before/after a transition energy.
+        """
+        super(EBL_AlvesBatista25, self).__init__()
+
+        self.info = 'cosmic infrared and optical background radiation  model of Alves Batista et al. 2025 (arXiv:25XX.XXX)'.format(which)
+        self.redshift = np.array([0.0, 0.05, 0.1, 0.25, 0.5, 1.0, 1.5, 2.0, 3.0, 4.0, 5.0])
+
+        if which == 'ul':
+            fname = 'EBL_AlvesBatista_2025/ebl-model_UL.txt'
+            self.name = 'IRB_AlvesBatista25_ul'
+        elif which == 'lu':
+            fname = 'EBL_AlvesBatista_2025/ebl-model_LU.txt'
+            self.name = 'IRB_AlvesBatista25_lu'
+        else:
+            raise ValueError('EBL_AlvesBatista25 only provides \"ul\" and \"lu\" models')
+        
+        d = np.loadtxt(datadir + fname, unpack = False)
+        e = d[:, 0]
+
+        self.energy = e
+        self.data = {}
+        self.photonDensity = []
+        for i, z in enumerate(self.redshift):
+            dnde = d[:, 1 + i]  # make comoving
+            self.data[z] = d[:, 0], dnde
+            self.photonDensity.append(self.data[z])
 
 # --------------------------------------------------------
 # CRB (radio) models
@@ -740,45 +774,58 @@ class URB_Nitu21(PhotonField):
         """Maximum effective photon energy in [J]"""
         return 1e12 * hertz * h_planck
 
+
+
 # --------------------------------------------------------
 #   main:   plot comparison of IRB models
 # --------------------------------------------------------
+
 if __name__ == '__main__':
+
     from pylab import *
+
+    z = 0.
     eps = logspace(-3, 1, 200) * eV
     x  = eps / eV
     c =  eps**2 / eV
-    y1   = c * EBL_Kneiske04().getDensity(eps)
-    y3   = c * EBL_Stecker05().getDensity(eps)
-    y5   = c * EBL_Franceschini08().getDensity(eps)
-    y6   = c * EBL_Finke10().getDensity(eps)
-    y7   = c * EBL_Dominguez11().getDensity(eps)
-    y8   = c * EBL_Gilmore12().getDensity(eps)
-    y7up = c * EBL_Dominguez11('upper').getDensity(eps)
-    y7lo = c * EBL_Dominguez11('lower').getDensity(eps)
-    y9up = c * EBL_Stecker16('upper').getDensity(eps)
-    y9lo = c * EBL_Stecker16('lower').getDensity(eps)
-    y10lo = c * EBL_Saldana21('lower').getDensity(eps)
-    y10up = c * EBL_Saldana21('upper').getDensity(eps)
-    y11  = c * EBL_Finke22().getDensity(eps)
+
+    y1   = c * EBL_Kneiske04().getDensity(eps, z = z)
+    y3   = c * EBL_Stecker05().getDensity(eps, z = z)
+    y5   = c * EBL_Franceschini08().getDensity(eps, z = z)
+    y6   = c * EBL_Finke10().getDensity(eps, z = z)
+    y7   = c * EBL_Dominguez11().getDensity(eps, z = z)
+    y8   = c * EBL_Gilmore12().getDensity(eps, z = z)
+    y7up = c * EBL_Dominguez11('upper').getDensity(eps, z = z)
+    y7lo = c * EBL_Dominguez11('lower').getDensity(eps, z = z)
+    y9up = c * EBL_Stecker16('upper').getDensity(eps, z = z)
+    y9lo = c * EBL_Stecker16('lower').getDensity(eps, z = z)
+    y10lo = c * EBL_Saldana21('lower').getDensity(eps, z = z)
+    y10up = c * EBL_Saldana21('upper').getDensity(eps, z = z)
+    y11  = c * EBL_Finke22().getDensity(eps, z = z)
+    y12a = c * EBL_AlvesBatista25('ul').getDensity(eps, z = z)
+    y12b = c * EBL_AlvesBatista25('lu').getDensity(eps, z = z)
+
 
     figure()
-    plot(x, y1, label='Kneiske 2004')
-    plot(x, y3, label='Stecker 2005')
-    plot(x, y5, label='Franceschini 2008')
-    plot(x, y6, label='Finke 2010')
+    # plot(x, y1, label='Kneiske 2004')
+    # plot(x, y3, label='Stecker 2005')
+    # plot(x, y5, label='Franceschini 2008')
+    # plot(x, y6, label='Finke 2010')
+    # fill_between(x, y7lo, y7up, facecolor='m', edgecolor='none', alpha=0.2, zorder=-1, label='Dominguez 2011 (limits)')
     plot(x, y7, label='Dominguez 2011')
     plot(x, y8, label='Gilmore 2012')
-    fill_between(x, y7lo, y7up, facecolor='m', edgecolor='none', alpha=0.2, zorder=-1, label='Dominguez 2011 (limits)')
-    fill_between(x, y9lo, y9up, facecolor='g', edgecolor='none', alpha=0.2, zorder=-1, label='Stecker 2016 (limits)')
+    # fill_between(x, y9lo, y9up, facecolor='g', edgecolor='none', alpha=0.2, zorder=-1, label='Stecker 2016 (limits)')
     fill_between(x, y10lo, y10up, facecolor='b', edgecolor='none', alpha=0.2, zorder=-1, label='Saldana 2021 (limits)')
     plot(x, y11, label='Finke 2022')
+    plot(x, y12a, label='Alves Batista 2025 (UL)')
+    plot(x, y12b, label='Alves Batista 2025 (LU)')
     
     legend(loc='lower center', fontsize='x-small')
     loglog()
     grid()
     ylabel('$\epsilon^2 ~ dn/d\epsilon$ [eV/m$^3$]')
     xlabel('$\epsilon$ [eV]')
+    
     if not os.path.exists('plots/'):
         os.makedirs("plots/")
     savefig('plots/EBL.png')
